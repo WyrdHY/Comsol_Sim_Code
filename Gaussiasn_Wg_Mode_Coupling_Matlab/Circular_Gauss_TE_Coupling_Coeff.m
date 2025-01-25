@@ -1,12 +1,24 @@
-addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));\n%% Initialization
+addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));%% Initialization
+which Fcn_Lib.m;
+%%
+addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));
+disp(path);  % Display current MATLAB path to verify
+%%
+if exist('load_and_interpolate_n', 'file')
+    disp('Function load_and_interpolate_n is accessible.');
+else
+    disp('Function load_and_interpolate_n is NOT accessible.');
+end
+
+%%
 addpath('C:\Program Files\COMSOL\COMSOL55\Multiphysics\mli')
 import com.comsol.model.*
 import com.comsol.model.util.*
 format long;
 mphstart(2036); 
 %%
-modelPath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Lensed_Fiber_to_Waveguide_Coupling\Straight_Wg.mph";
-savePath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Lensed_Fiber_to_Waveguide_Coupling\Straight_Wg.mph";
+modelPath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Lensed_Fiber_to_Waveguide_Coupling\Straight_Wg.mph";
+savePath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Lensed_Fiber_to_Waveguide_Coupling\Straight_Wg.mph";
 
 model = mphload(modelPath);   
 ModelUtil.showProgress(true);
@@ -15,7 +27,7 @@ ModelUtil.showProgress(true);
 mphnavigator(model);
 
 %% Configure Parameters for Dispersion Single Ring
-fpath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Material\Sellmeier Fitting\Sellmeier_2%_Long Anneal.txt";
+fpath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Material\Sellmeier Fitting\Sellmeier_2%_Long Anneal.txt";
 n = load_and_interpolate_n(fpath);
 core_width = 12;
 core_height = 2;

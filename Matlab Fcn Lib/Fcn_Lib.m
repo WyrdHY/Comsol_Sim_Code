@@ -1,4 +1,3 @@
-addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));\n%% General Function
 function output = flag(x)
    % x = 0, means small region, ewfd2
    % x = 333 means no need to distinguish them
