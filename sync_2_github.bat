@@ -1,6 +1,13 @@
 @echo off
+:: Set code page to UTF-8 to handle different characters
+chcp 65001 > nul
+
+:: Temporarily set system locale to English
+set LC_ALL=en_US.UTF-8
+set LANG=en_US.UTF-8
+
 :: Set the repository path (modify this if needed)
-set REPO_PATH=D:\Caltech\Your_GitHub_Repo
+set REPO_PATH=D:\Caltech\Comsol_Sim_Code
 
 :: Navigate to the repository directory
 cd /d "%REPO_PATH%"
@@ -22,9 +29,12 @@ git pull origin main
 echo Staging all changes...
 git add .
 
-:: Commit with a timestamp message
-set DATE_TIME=%date% %time%
-echo Committing changes with timestamp...
+:: Get English formatted date and time
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set DATETIME=%%I
+set DATE_TIME=%DATETIME:~0,4%-%DATETIME:~4,2%-%DATETIME:~6,2% %DATETIME:~8,2%:%DATETIME:~10,2%:%DATETIME:~12,2%
+
+:: Commit with an English timestamp message
+echo Committing changes with timestamp: %DATE_TIME%...
 git commit -m "Auto-sync on %DATE_TIME%"
 
 :: Push changes to GitHub
