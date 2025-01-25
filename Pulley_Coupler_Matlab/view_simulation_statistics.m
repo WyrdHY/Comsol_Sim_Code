@@ -1,4 +1,4 @@
-% Define the root directory
+addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));\n% Define the root directory
 root_dir = 'C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\PG_Coupler_Jan_9_2025\log';
 
 % Get all subdirectories
