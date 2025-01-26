@@ -70,7 +70,7 @@ drawnow;
 disp(['Study ', studyName, ' completed successfully.']);
 
 %% Loop through different beam waist
-z_list = (0:1:20);
+z_list = (100:10:400);
 theta_x=22;
 theta_y=8;
 
@@ -93,9 +93,9 @@ for polar = polar_list
         end
         %Para for Gaussian Beam
         nx = 1000;  
-        ny = 500;  
+        ny = 800;  
         %Meshing 
-        rx = 14*1e-6;
+        rx = 14.9*1e-6;
         ry = 8*1e-6;
         xVec = linspace(-rx, rx, nx);
         yVec = linspace(-ry, ry, ny);
@@ -110,7 +110,6 @@ for polar = polar_list
         dx = xVec(2) - xVec(1);
         dy = yVec(2) - yVec(1);
         dA = dx * dy;  % Elemental area
-        
         % Compute the numerator: |∫ E1* E2 dA|^2
         I12 = sum(conj(Ex_data).*E_gauss_x + conj(Ey_data).*E_gauss_y, 'all') * dA;
         numerator = abs(I12)^2;
@@ -159,8 +158,8 @@ hold off;
 nx = 800;  
 ny = 300;  
 % Meshing
-rx = 14*1e-6;
-ry = 4*1e-6;
+rx = 14.9*1e-6;
+ry = 8*1e-6;
 xVec = linspace(-rx, rx, nx);
 yVec = linspace(-ry, ry, ny);
 [X, Y] = meshgrid(xVec, yVec); 
@@ -170,9 +169,13 @@ Ex_data = reshape(mphinterp(model, 'ewfd.Ex', 'coord', coords, 'dataset', indica
 Ey_data = reshape(mphinterp(model, 'ewfd.Ey', 'coord', coords, 'dataset', indicator.dset, 'solnum', solnum), ny, nx);
 
 %Compute
-polarization = 1; z = 15; theta_x = 22;theta_y=8;ida=532;
-Gauss_polar=polarization
+polarization = 1; z = 200; theta_x = 22;theta_y=8;ida=532;
+Gauss_polar=polarization;
 [E_gauss_x, E_gauss_y] = Ellptical_Gauss_z(X,Y,polarization,z,theta_x,theta_y,ida); 
+
+%
+xVec_um = xVec*1e6;
+yVec_um = yVec*1e6;
 
 % Plot Gaussian field
 % Set dynamic title based on polarization
