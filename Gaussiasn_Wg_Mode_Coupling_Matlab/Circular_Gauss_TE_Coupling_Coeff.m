@@ -1,15 +1,4 @@
 addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));%% Initialization
-which Fcn_Lib.m;
-%%
-addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));
-disp(path);  % Display current MATLAB path to verify
-%%
-if exist('load_and_interpolate_n', 'file')
-    disp('Function load_and_interpolate_n is accessible.');
-else
-    disp('Function load_and_interpolate_n is NOT accessible.');
-end
-
 %%
 addpath('C:\Program Files\COMSOL\COMSOL55\Multiphysics\mli')
 import com.comsol.model.*
@@ -24,7 +13,7 @@ model = mphload(modelPath);
 ModelUtil.showProgress(true);
 
 %% Navigator
-mphnavigator(model);
+%mphnavigator(model);
 
 %% Configure Parameters for Dispersion Single Ring
 fpath = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Material\Sellmeier Fitting\Sellmeier_2%_Long Anneal.txt";
@@ -80,7 +69,7 @@ drawnow;
 disp(['Study ', studyName, ' completed successfully.']);
 %% Loop through different beam waist
 % Prepare Mesh Grid
-w0_list = (0.5:0.2:5)*1e-6;
+w0_list = (0.5:0.5:5)*1e-6;
 polar_list = [0,1];
 eta_list = zeros(2,length(w0_list));
 

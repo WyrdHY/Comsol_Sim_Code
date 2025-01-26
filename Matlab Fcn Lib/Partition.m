@@ -1,4 +1,4 @@
-split_functions('Fcn_Lib.m');
+split_functions('\Fcn_Lib.m');
 function split_functions(fcn_lib_path)
     % Open the file for reading
     fid = fopen(fcn_lib_path, 'r');
@@ -9,8 +9,8 @@ function split_functions(fcn_lib_path)
     file_contents = fread(fid, '*char')';
     fclose(fid);
 
-    % Regular expression to match MATLAB function definitions
-    func_pattern = 'function\s+(.*?)\n([\s\S]*?)(?=\n\s*function\s+|$)';
+    % Regular expression to match MATLAB function definitions including multi-line signatures
+    func_pattern = '(?<=\n|^)\s*function\s+([\s\S]+?)\n([\s\S]*?)(?=\n\s*function\s+|$)';
 
     % Find all matches
     funcs = regexp(file_contents, func_pattern, 'tokens');
@@ -18,16 +18,28 @@ function split_functions(fcn_lib_path)
     if isempty(funcs)
         error('No functions found in the file.');
     end
+    
 
-    % Extract the parent directory of the input file
-    [parent_dir, ~, ~] = fileparts(fcn_lib_path);
-
-    % Define the target folder for partitioned functions
-    target_dir = fullfile(parent_dir, 'Fcn_lib');
-
-    % Create the target directory if it does not exist
+    
+    % Get the full path of the currently executing script
+    if isdeployed
+        script_path = ctfroot;  % For deployed applications
+    else
+        script_path = matlab.desktop.editor.getActiveFilename;
+    end
+    
+    % Extract the directory where the script is located
+    script_folder = fileparts(script_path);
+    
+    % Define the target folder within the same directory as Partition.m
+    target_dir = fullfile(script_folder, 'FCN_Lib');
+    
+    % Create the folder if it does not exist
     if ~exist(target_dir, 'dir')
         mkdir(target_dir);
+        disp(['Folder created: ', target_dir]);
+    else
+        disp(['Folder already exists: ', target_dir]);
     end
 
     % Process each function found
@@ -36,7 +48,7 @@ function split_functions(fcn_lib_path)
         func_body = strtrim(funcs{i}{2});
 
         % Extract function name by considering different possible signatures
-        func_name_match = regexp(func_signature, '^\s*\[?([a-zA-Z_]\w*)\]?\s*=\s*([a-zA-Z_]\w*)', 'tokens', 'once');
+        func_name_match = regexp(func_signature, '^\s*\[?.*?\]?\s*=\s*([a-zA-Z_]\w*)', 'tokens', 'once');
         
         if isempty(func_name_match)
             func_name_match = regexp(func_signature, '^\s*([a-zA-Z_]\w*)', 'tokens', 'once');
@@ -48,7 +60,7 @@ function split_functions(fcn_lib_path)
         end
         
         % Use the function name found in the signature
-        func_name = strtrim(func_name_match{end});
+        func_name = strtrim(func_name_match{1});
 
         % Write each function to a new .m file in the Fcn_lib folder
         new_file_name = fullfile(target_dir, [func_name, '.m']);

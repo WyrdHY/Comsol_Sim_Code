@@ -26,3 +26,5 @@ c=299792458;
     b = D2 / (2 * pi); % FSR from D2
     title(sprintf('FSR = D_1 / 2\\pi = %.3f Ghz, D_2 / 2\\pi = %.3f', FSR, b));
 end
+
+%%
