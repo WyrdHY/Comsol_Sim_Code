@@ -37,7 +37,7 @@ function [E_gauss_x,E_gauss_y]=Gauss(w0,X,Y,polarization)
     % polarization = 1 means TE, Eup
     % polarization = 0 means TM, Eright
     x0 = 0; y0 = 0; A  = 1;  
-    if polarization
+    if ~polarization
         E_gauss_y = A * exp(-((X - x0).^2 + (Y - y0).^2)/(w0^2));
         E_gauss_x = zeros(size(E_gauss_y));
     else
@@ -68,7 +68,7 @@ function [E_gauss_x,E_gauss_y]=Ellptical_Gauss_z(X,Y,polarization,z,theta_x,thet
 
     E_field = A * exp(-((X - x0).^2 / wxz^2 + (Y - y0).^2 / wyz^2));
 
-    if polarization
+    if ~polarization
         E_gauss_y = E_field;
         E_gauss_x = zeros(size(E_gauss_y));
     else
@@ -186,3 +186,5 @@ function D_coeffs=dispersion(omega,beta,lambda_0)
 end
 
 %%
+a =1;
+disp(~a);

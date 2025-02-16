@@ -20,7 +20,7 @@ function [E_gauss_x,E_gauss_y]=Ellptical_Gauss_z(X,Y,polarization,z,theta_x,thet
 
     E_field = A * exp(-((X - x0).^2 / wxz^2 + (Y - y0).^2 / wyz^2));
 
-    if polarization
+    if ~polarization
         E_gauss_y = E_field;
         E_gauss_x = zeros(size(E_gauss_y));
     else

@@ -45,17 +45,17 @@ temp1 = mphglobal(model, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(
 temp2 = mphglobal(model, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(2));
 
 if temp1>temp2
-    iTE = top2Indices(1);
-    iTM = top2Indices(2);
-else
-    iTE = top2Indices(2);
     iTM = top2Indices(1);
+    iTE = top2Indices(2);
+else
+    iTM = top2Indices(2);
+    iTE = top2Indices(1);
 end
 disp('Body Momentum Done')
 
 modes = {'TE', 'TM'};
 solnums = [iTE, iTM];  
-titles = {'TE Mode, E-Up', 'TM Mode, E-Right'};
+titles = {'TE Mode, E-Right', 'TM Mode, E-Up'};
 figure;
 for i = 1:2
     model.result('pg1').set('data', indicator.dset);
@@ -70,14 +70,14 @@ drawnow;
 disp(['Study ', studyName, ' completed successfully.']);
 
 %% Loop through different beam waist
-z_list = (100:10:400);
-theta_x=22;
-theta_y=8;
+z_list = (1:1:100);
+theta_x=12*180/(1000*pi);
+theta_y=12*180/(1000*pi);
 
-
+solnum = iTE;
 
 w0_list = (0.5:0.2:5)*1e-6;
-polar_list = [1];
+polar_list = [0];
 eta_list = zeros(1,length(z_list));
 
 for polar = polar_list
@@ -92,8 +92,8 @@ for polar = polar_list
             j=2;
         end
         %Para for Gaussian Beam
-        nx = 1000;  
-        ny = 800;  
+        nx = 600;  
+        ny = 300;  
         %Meshing 
         rx = 14.9*1e-6;
         ry = 8*1e-6;
@@ -128,7 +128,7 @@ end
 %% Plot ita v.s. z
 te_color = [0 0.447 0.741];   % Nice blue color for TE
 tm_color = [0.850 0.325 0.098]; % Nice red-orange color for TM
-
+solnum = iTE;
 figure;
 hold on;
 
@@ -153,7 +153,11 @@ hold off;
 
 
 %% Debug
-
+theta_x=12*180/(1000*pi);
+theta_y=12*180/(1000*pi);
+z=1000;
+polarization = 1;
+ida=532;
 % Parameters for Gaussian Beam
 nx = 800;  
 ny = 300;  
@@ -169,7 +173,6 @@ Ex_data = reshape(mphinterp(model, 'ewfd.Ex', 'coord', coords, 'dataset', indica
 Ey_data = reshape(mphinterp(model, 'ewfd.Ey', 'coord', coords, 'dataset', indicator.dset, 'solnum', solnum), ny, nx);
 
 %Compute
-polarization = 1; z = 200; theta_x = 22;theta_y=8;ida=532;
 Gauss_polar=polarization;
 [E_gauss_x, E_gauss_y] = Ellptical_Gauss_z(X,Y,polarization,z,theta_x,theta_y,ida); 
 
@@ -191,7 +194,7 @@ ylabel('y [\mum]', 'FontSize', 12);
 title(sprintf('laser diode, z=%.2f um',z))
 % Plot COMSOL field
 subplot(1,2,2);
-if Gauss_polar == 1
+if ~Gauss_polar == 1
     imagesc(xVec_um, yVec_um, abs(Ey_data));
 else 
     imagesc(xVec_um, yVec_um, abs(Ex_data));
