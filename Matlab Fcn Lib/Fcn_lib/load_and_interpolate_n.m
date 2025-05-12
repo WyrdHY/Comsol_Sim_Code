@@ -2,6 +2,9 @@ function n_interp = load_and_interpolate_n(filepath)
 % Load the data from the provided file path
     data = load(filepath);
     wavelength_nm = data(:,1);  % First column: wavelength (nm)
+    if wavelength_nm(1) <0.1
+        wavelength_nm = wavelength_nm*1e9
+    end
     n_values = data(:,2);       % Second column: refractive index (n)
 
     % Create the interpolation function

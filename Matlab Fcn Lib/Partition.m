@@ -1,4 +1,4 @@
-split_functions('\Fcn_Lib.m');
+split_functions("C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Matlab Fcn Lib\Fcn_Lib.m");
 function split_functions(fcn_lib_path)
     % Open the file for reading
     fid = fopen(fcn_lib_path, 'r');
