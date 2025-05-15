@@ -406,7 +406,7 @@ for r = radius_list
     outFolder = 'C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Toroidal_21th\Temp_Output';
     filename = fullfile(outFolder, tinfo+ '.fig');
     savefig(hFig, filename);
-
+    close;
     result(2,i) = beta_TE;  
     result(3,i) = abs(Q_TE);
     result(4,i) = leak_A_TE;  
