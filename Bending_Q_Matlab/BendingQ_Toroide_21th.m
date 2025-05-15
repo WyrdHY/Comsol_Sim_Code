@@ -8,8 +8,8 @@ import com.comsol.model.util.*
 format long;
 mphstart(2036); 
 %%
-modelPath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG.mph";
-savePath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_save_Q.mph";
+modelPath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_FuckAround.mph";
+savePath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_FuckAround_SAve_Q.mph";
 
 
 model1 = ModelUtil.create('Model1');
@@ -220,8 +220,8 @@ disp(['Elapsed time: ', char(elapsedTime)]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Calculate Bending Q for low confinement. 
 % Input: ida, radius, and width
-ida_list = [1064]; 
-r_curve_list = [1.5,2,2.5,3];
+ida_list = [450]; 
+r_curve_list = [0.5,1,1.5];
 result_map = containers.Map(); 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate all of the key
@@ -247,7 +247,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin the loop{for each key, we loop the radius)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-radius_list = [3.5,3.6,3.7,3.8,3.9,4,4.1,4.2,4.3];
+radius_list = [];
 
 j = 1;
 startTime = datetime('now');  % Record start time
@@ -258,6 +258,16 @@ key_entry = key_entry{1};
 key = key_entry{1};
 ida = key_entry{2};
 r_ = key_entry{3};
+    if r_ == 0.5
+        radius_list = 2 : 0.2 : 3.2;
+    elseif r_ == 1
+        radius_list = 1.2 : 0.2 : 2.4;
+    elseif r_ == 1.5
+        radius_list = 1.5 : 0.2 : 2;
+    else
+        error('Unexpected r_ = %g', r_)
+    end
+%{
     if r_ == 1.5
         radius_list = 3.5 : 0.1 : 6.5;
     elseif r_ == 2
@@ -269,7 +279,7 @@ r_ = key_entry{3};
     else
         error('Unexpected r_ = %g', r_)
     end
-
+%}
 result = zeros(5,length(radius_list)); %r,TE,Q TE, TM,Q TM
 result(1,:) = radius_list';
 i=1;

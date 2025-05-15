@@ -220,8 +220,8 @@ disp(['Elapsed time: ', char(elapsedTime)]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Calculate Bending Q for low confinement. 
 % Input: ida, radius, and width
-ida_list = [1064]; 
-r_curve_list = [1.5,2,2.5,3];
+ida_list = [450]; 
+r_curve_list = [0.5,1,1.5,2];
 result_map = containers.Map(); 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate all of the key
@@ -247,7 +247,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin the loop{for each key, we loop the radius)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-radius_list = [3.5,3.6,3.7,3.8,3.9,4,4.1,4.2,4.3];
+radius_list = [];
 
 j = 1;
 startTime = datetime('now');  % Record start time
@@ -258,15 +258,19 @@ key_entry = key_entry{1};
 key = key_entry{1};
 ida = key_entry{2};
 r_ = key_entry{3};
-if r_ =1.5
-    radius_list=3.5:0.1:6.5
-if r_ = 2
-    radius_list=3.5:0.1:6
-if r_ = 2.5
-    radius_list=3.5:0.1:5.5
-if r_ = 2.5
-    radius_list=3.5:0.1:5
-
+%{
+    if r_ == 1.5
+        radius_list = 3.5 : 0.1 : 6.5;
+    elseif r_ == 2
+        radius_list = 3.5 : 0.1 : 6.0;
+    elseif r_ == 2.5
+        radius_list = 3.5 : 0.1 : 5.5;
+    elseif r_ == 3
+        radius_list = 3.5 : 0.1 : 5.0;
+    else
+        error('Unexpected r_ = %g', r_)
+    end
+%}
 result = zeros(5,length(radius_list)); %r,TE,Q TE, TM,Q TM
 result(1,:) = radius_list';
 i=1;
@@ -370,14 +374,16 @@ for r = radius_list
         beta_TM = 0;
         Q_TM = 0;
     end
-
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Plot
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     hFig=figure;
     model1.result('pg1').set('data', indicator.dset);
     model1.result('pg1').set('solnum', iTE);
     model1.result('pg1').set('edgecolor', 'white');
     model1.result('pg1').feature('surf1').set('colortable', 'Rainbow');
 
-    log_plot = 0;
+    log_plot = 1;
     if log_plot
     model1.result('pg1').feature('surf1').set('expr', "log(ewfd.normE)");  
     model1.result('pg1').feature('surf1').set('rangecoloractive', 'on');
@@ -398,10 +404,10 @@ for r = radius_list
     drawnow;
 
     % Save Temporal Photo In Case You Need It Later
-    outFolder = 'C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Toroidal_21th\Temp_Output';
+    outFolder = 'C:\Users\Dirk\Desktop\Temp_Output\Toroid';
     filename = fullfile(outFolder, tinfo+ '.fig');
     savefig(hFig, filename);
-
+    close;
     result(2,i) = beta_TE;  
     result(3,i) = abs(Q_TE);
     result(4,i) = leak_A_TE;  
@@ -454,12 +460,14 @@ figure;
 for key = key_holder
     key = key{1};
     key = key{1};
+    try
     result  = result_map(key);             
     r       = result(1,:);                
     Q_TE    = abs(result(3,:));           
     loglog(r, Q_TE, '-o', ...
            'LineWidth', 1.5, ...
            'DisplayName', key);hold on;
+    end
 end
 
 yline(1e9, '--', 'LineWidth', 1, 'DisplayName', 'Q = 10^9');
