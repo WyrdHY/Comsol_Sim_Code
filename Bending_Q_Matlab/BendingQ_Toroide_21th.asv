@@ -9,7 +9,7 @@ format long;
 mphstart(2036); 
 %%
 modelPath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG.mph";
-savePath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_save_Q.mph";
+savePath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_SQ1550.mph";
 
 
 model1 = ModelUtil.create('Model1');
@@ -220,8 +220,8 @@ disp(['Elapsed time: ', char(elapsedTime)]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Calculate Bending Q for low confinement. 
 % Input: ida, radius, and width
-ida_list = [450]; 
-r_curve_list = [0.5,1,1.5,2];
+ida_list = [1550]; 
+r_curve_list = [1.5,2,2.5,3];
 result_map = containers.Map(); 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Generate all of the key
@@ -247,7 +247,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin the loop{for each key, we loop the radius)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-radius_list = [];
+radius_list = [4.5,6.5,7.5,8.5];
 
 j = 1;
 startTime = datetime('now');  % Record start time
@@ -258,6 +258,17 @@ key_entry = key_entry{1};
 key = key_entry{1};
 ida = key_entry{2};
 r_ = key_entry{3};
+    if r_ == 1.5
+        radius_list = 7 : 0.3 : 10;
+    elseif r_ == 2
+        radius_list = 6.5 : 0.3 : 9.5;
+    elseif r_ == 2.5
+        radius_list = 6 : 0.3 : 9;
+    elseif r_ == 3
+        radius_list = 5.5 : 0.3 : 8.5;
+    else
+        error('Unexpected r_ = %g', r_)
+    end
 %{
     if r_ == 1.5
         radius_list = 3.5 : 0.1 : 6.5;
@@ -407,7 +418,7 @@ for r = radius_list
     outFolder = 'C:\Users\Dirk\Desktop\Temp_Output\Toroid';
     filename = fullfile(outFolder, tinfo+ '.fig');
     savefig(hFig, filename);
-    close;
+    %close;
     result(2,i) = beta_TE;  
     result(3,i) = abs(Q_TE);
     result(4,i) = leak_A_TE;  
