@@ -21,7 +21,7 @@ mphnavigator(model1);
     % Std1 is for small Region ewfd2
     % Std2 is for large Region ewfd
 %% Global Parameters
-ida=450;
+ida=1064;
 radius=3;
 r_=1.5;
 air_offset = 10;
@@ -40,15 +40,17 @@ betaR(nClad, nCore, ida, 5, air_offset, 0, 1)
 
 %%
 % Configure Parameters for Body Ring
+%{
 model1.param.set('ida', [num2str(ida, '%.3f'),'[nm]']);
 model1.param.set('pml_extend', [num2str(pml_extend, '%.2f'),'[um]']);
 model1.param.set('radius', [num2str(radius, '%.3f'),'[um]']);
-model1.param.set('r_', [num2str(radius, '%.3f'),'[um]']);
+model1.param.set('r_', [num2str(r_, '%.3f'),'[um]']);
 model1.param.set('initial_guess', ['nCore*(radius+r_)']);
 model1.param.set('air_offset', [num2str(air_offset, '%.4f'),'[um]']);
 disp('Body Configured')
-%% Calculate Bending Q
-ida_list = [450]; 
+%}
+%% Calculate Bending Q. Input: ida, radius. Width is fixed.
+ida_list = [1064]; 
 result_map = containers.Map(); 
 j = 1;
 for ida = ida_list
@@ -59,11 +61,8 @@ disp(['Start time: ', datestr(startTime, 'yyyy-mm-dd HH:MM:SS')]);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Extra Wavelength Layer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if ida<500
-    radius_list = [1.5,1.51,1.52,1.53,1.55,1.58,1.6,1.65,1.68,1.70,1.75,1.8,2,3,4,5,6,7,8,9,10];
-else 
-    radius_list = [6, 6.2, 6.4, 6.6, 6.8, 7, 7.6, 7.8, 8, 8.2, 8.4, 8.6, 8.8, 10, 11, 12, 13, 14];
-end
+radius_list = [2,4,6,8];
+
 result = zeros(5,length(radius_list)); %r,TE,Q TE, TM,Q TM
 result(1,:) = radius_list';
 i=1;
@@ -216,14 +215,231 @@ endTime = datetime('now');  % Record end time
 disp(['End time: ', datestr(endTime, 'yyyy-mm-dd HH:MM:SS')]);
 elapsedTime = endTime - startTime;
 disp(['Elapsed time: ', char(elapsedTime)]);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Calculate Bending Q for low confinement. 
+% Input: ida, radius, and width
+ida_list = [1064]; 
+r_curve_list = [1.5,2,2.5,3];
+result_map = containers.Map(); 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Generate all of the key
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% total number of combinations
+nCombos = numel(ida_list)*numel(r_curve_list);
+
+% preallocate a 1×n cell
+key_holder = cell(1, nCombos);
+
+k = 1;
+for ii = 1:numel(ida_list)
+    for jj = 1:numel(r_curve_list)
+        ida = ida_list(ii);
+        r   = r_curve_list(jj);
+        key = sprintf('ida=%d_r_=%.1f', ida, r);
+        % each entries{k} is a 1×3 cell: {key, ida, r}
+        key_holder{k} = { key, ida, r };
+        k = k + 1;
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Begin the loop{for each key, we loop the radius)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+radius_list = [3.5,3.6,3.7,3.8,3.9,4,4.1,4.2,4.3];
+
+j = 1;
+startTime = datetime('now');  % Record start time
+disp(['Start time: ', datestr(startTime, 'yyyy-mm-dd HH:MM:SS')]);
+
+for key_entry = key_holder
+key_entry = key_entry{1};
+key = key_entry{1};
+ida = key_entry{2};
+r_ = key_entry{3};
+    if r_ == 1.5
+        radius_list = 3.5 : 0.1 : 6.5;
+    elseif r_ == 2
+        radius_list = 3.5 : 0.1 : 6.0;
+    elseif r_ == 2.5
+        radius_list = 3.5 : 0.1 : 5.5;
+    elseif r_ == 3
+        radius_list = 3.5 : 0.1 : 5.0;
+    else
+        error('Unexpected r_ = %g', r_)
+    end
+
+result = zeros(5,length(radius_list)); %r,TE,Q TE, TM,Q TM
+result(1,:) = radius_list';
+i=1;
+tot = length(radius_list)*length(key_holder);
+for r = radius_list
+    disp(sprintf('%d/%d',j,tot));
+    j=j+1;
+    indicator = flag(0); % Small Region ewfd2
+    studyName = indicator.std; 
+    model1.param.set('ida', [num2str(ida, '%.3f'),'[nm]']);
+    model1.param.set('radius', [num2str(r, '%.3f'),'[um]']);
+    model1.param.set('r_', [num2str(r_, '%.3f'),'[um]']);
+ 
+    model1.study('std1').feature('mode').set('neigs', '6');
+    model1.param.set('initial_guess', ['nCore*(radius+r_)']);
+    model1.study(studyName).run();
+    neff = mphglobal(model1, 'real(ewfd2.neff)', 'dataset', indicator.dset);
+    core_total = mphglobal(model1, 'eigen_core_energy/eigen_total_energy', 'dataset', indicator.dset);
+    % Filter out modes with core_total < 0.8
+    validIndices = find(core_total >= 0.2);
+    % Sort the valid eigenvalues in descending order
+    [~, sortOrder] = sort(neff(validIndices), 'descend');
+    try
+    top2Indices = validIndices(sortOrder(1:2));
+    temp1 = mphglobal(model1, '(ez2)', 'dataset', indicator.dset,'solnum',top2Indices(1));
+    temp2 = mphglobal(model1, '(ez2)', 'dataset', indicator.dset,'solnum',top2Indices(2));
+    if temp1>temp2
+        iTM = top2Indices(1);
+        iTE = top2Indices(2);
+    else
+        iTM = top2Indices(2);
+        iTE = top2Indices(1);
+    end
+    catch
+        continue %skip this if you cannot find a mode in easy search
+    end
+    initial_guess = neff(iTE);
+    
+    
+    % Prepare Macro for detailed Scan
+    model1.param.set('initial_guess', num2str(initial_guess));
+    indicator = flag(1); % Large Region ewfd1
+    studyName = indicator.std; 
+    model1.study('std2').feature('mode').set('neigs', '6');
+    model1.study(studyName).run();
+
+    neff = mphglobal(model1, 'real(ewfd.neff)', 'dataset', indicator.dset);
+    core_total = mphglobal(model1, 'core_energy/total_energy', 'dataset', indicator.dset);
+    % Filter out modes with core_total < 0.7
+    validIndices = find(core_total >= 0.2);
+    watchdog = 1;
+    info = sprintf("ida=%d, r=%.1f um",ida,r);
+
+    if numel(validIndices) < 2
+        disp(['Skipping ', info, ' Careful with this']);
+        iTE = validIndices(1);
+        xxx = mphglobal(model1, '(ex)', 'dataset', indicator.dset,'solnum',iTE);
+        watchdog = 0;
+    end
+    
+    if watchdog
+        % Sort the valid eigenvalues in descending order
+        [~, sortOrder] = sort(neff(validIndices), 'descend');
+        top2Indices = validIndices(sortOrder(1:2));
+    
+        temp1 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(1));
+        temp2 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(2));
+        if temp1>temp2
+            iTM = top2Indices(1);
+            iTE = top2Indices(2);
+        else
+            iTM = top2Indices(2);
+            iTE = top2Indices(1);
+        end
+    end
+
+    try
+        beta_TE = mphglobal(model1, 'real(ewfd.beta)', 'dataset', indicator.dset,'solnum',iTE);
+        re = mphglobal(model1,'real(ewfd.neff)', 'dataset', indicator.dset,'solnum',iTE);
+        im = mphglobal(model1,'imag(ewfd.neff)', 'dataset', indicator.dset,'solnum',iTE);
+        tot_e_TE = mphglobal(model1, 'total_energy', 'dataset', indicator.dset, 'solnum', iTE);
+        leak_e_TE = mphglobal(model1, 'leak_energy', 'dataset', indicator.dset, 'solnum', iTE);
+        leak_A_TE = mphglobal(model1, 'leak_A', 'dataset', indicator.dset, 'solnum', ...
+            iTE,'unit',   'um^2' );
+        Q_TE = re/(im*2);
+    catch
+        beta_TE = 0;
+        Q_TE = 0;
+    end
+
+    try 
+        beta_TM = mphglobal(model1, 'real(ewfd.beta)', 'dataset', indicator.dset,'solnum',iTM);
+        re = mphglobal(model1,'real(ewfd.neff)', 'dataset', indicator.dset,'solnum',iTM);
+        im = mphglobal(model1,'imag(ewfd.neff)', 'dataset', indicator.dset,'solnum',iTM);
+        tot_e_TM = mphglobal(model1, 'total_energy', 'dataset', indicator.dset, 'solnum', iTM);
+        leak_e_TM = mphglobal(model1, 'leak_energy', 'dataset', indicator.dset, 'solnum', iTM);
+        leak_A_TM = mphglobal(model1, 'leak_A', 'dataset', indicator.dset, 'solnum', ...
+            iTM,'unit',   'um^2' );
+        Q_TM = re/(im*2);
+    catch
+        beta_TM = 0;
+        Q_TM = 0;
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Plot
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    hFig=figure;
+    model1.result('pg1').set('data', indicator.dset);
+    model1.result('pg1').set('solnum', iTE);
+    model1.result('pg1').set('edgecolor', 'white');
+    model1.result('pg1').feature('surf1').set('colortable', 'Rainbow');
+
+    log_plot = 1;
+    if log_plot
+    model1.result('pg1').feature('surf1').set('expr', "log(ewfd.normE)");  
+    model1.result('pg1').feature('surf1').set('rangecoloractive', 'on');
+    model1.result('pg1').feature('surf1').set('rangecolormin', '-4');
+    model1.result('pg1').feature('surf1').set('rangecolormax', '5.5');
+    model1.result('pg1').feature('surf1').set('descr', '|E|');
+    else
+    model1.result('pg1').feature('surf1').set('expr', "(ewfd.normE)");  
+    model1.result('pg1').feature('surf1').set('rangecoloractive', 'off');
+    end
+
+    model1.result('pg1').feature('arws1').active(0);
+    model1.result('pg1').feature('arws1').set('expr', {'abs(ewfd.Er)','abs(ewfd.Ez)'});
+    TE_field = mphplot(model1, 'pg1','rangenum',1);
+    tinfo = sprintf("%s,Radius=%.1f um,log plot=%d",key,r,log_plot);
+
+    title(tinfo, 'Interpreter', 'none')
+    drawnow;
+
+    % Save Temporal Photo In Case You Need It Later
+    outFolder = 'C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Toroidal_21th\Temp_Output';
+    filename = fullfile(outFolder, tinfo+ '.fig');
+    savefig(hFig, filename);
+
+    result(2,i) = beta_TE;  
+    result(3,i) = abs(Q_TE);
+    result(4,i) = leak_A_TE;  
+    result(5,i) = leak_e_TE/tot_e_TE;
+
+
+    result(6,i) = beta_TM;
+    result(7,i) = abs(Q_TM);
+    result(8,i) = leak_A_TM;
+    result(9,i) = leak_e_TM/tot_e_TM;
+
+    disp(i/length(radius_list));
+    i = i+1;
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Extra Wavelength Layer
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+result_map(key)=result;
+end
+endTime = datetime('now');  % Record end time
+disp(['End time: ', datestr(endTime, 'yyyy-mm-dd HH:MM:SS')]);
+elapsedTime = endTime - startTime;
+disp(['Elapsed time: ', char(elapsedTime)]);
 %%
 protect = result_map;
 %%
-a = protect('ida=450');
-%% Plot Bending Q at specific wavelength
-ida = 450;
-key    = sprintf("ida=%d", ida);
-result = result_map(key);
+a = protect('ida=1064');
+%% Plot Bending Q at specific key
+ida = 1064;
+r_ = 1.5;
+key = sprintf('ida=%d_r_=%.1f', ida, r_);
+%key = sprintf('ida=%d', ida);
+result = a %result_map(key);
 r      = result(1,:);   % r values
 betaTE = result(2,:);
 Q_TE   = abs(result(3,:));
@@ -239,24 +455,26 @@ ylabel('Q');
 title('21th Toroid, 450nm');
 
 %% Plot all of them 
-figure;  hold on;
-idas = 1550;                               
-for ida = ida_list
-    key     = sprintf("ida=%d", ida);
+figure;  
+for key = key_holder
+    key = key{1};
+    key = key{1};
+    try
     result  = result_map(key);             
     r       = result(1,:);                
     Q_TE    = abs(result(3,:));           
     loglog(r, Q_TE, '-o', ...
            'LineWidth', 1.5, ...
-           'DisplayName', sprintf('lambda = %d nm', ida));
+           'DisplayName', key);hold on;
+    end
 end
 
 yline(1e9, '--', 'LineWidth', 1, 'DisplayName', 'Q = 10^9');
-ylim([1e4,3e9]);
+%ylim([1e4,3e9]);
 xlabel('r (µm)');
 ylabel('Q');
 title('r vs. Q (log–log scale)');
-legend('Location', 'best');
+legend('show', 'Interpreter', 'none');
 grid on;  hold off;
 %% Save the Result
 out = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Toroidal_21th\Temp_Output";
