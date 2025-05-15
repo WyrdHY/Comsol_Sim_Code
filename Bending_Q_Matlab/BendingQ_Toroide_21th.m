@@ -403,7 +403,7 @@ for r = radius_list
     drawnow;
 
     % Save Temporal Photo In Case You Need It Later
-    outFolder = 'C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Toroidal_21th\Temp_Output';
+    outFolder = 'C:\Users\Dirk\Desktop\Temp_Output\Toroid';
     filename = fullfile(outFolder, tinfo+ '.fig');
     savefig(hFig, filename);
     close;
