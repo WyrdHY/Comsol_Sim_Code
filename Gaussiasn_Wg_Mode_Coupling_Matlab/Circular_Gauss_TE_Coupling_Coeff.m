@@ -1,6 +1,8 @@
-addpath(genpath(fullfile(fileparts(mfilename('fullpath')), '..', 'Matlab Fcn Lib')));%% Initialization
+%% Include the Function Lib
+basefolder = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Matlab Fcn Lib\Fcn_lib";
+addpath(genpath(basefolder)); 
 %%
-addpath('C:\Program Files\COMSOL\COMSOL55\Multiphysics\mli')
+addpath('C:\Program Files\COMSOL\COMSOL62\Multiphysics\mli')
 import com.comsol.model.*
 import com.comsol.model.util.*
 format long;
