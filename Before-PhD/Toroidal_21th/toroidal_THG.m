@@ -1,0 +1,357 @@
+%% Include the Function Lib
+basefolder = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Matlab Fcn Lib\Fcn_lib";
+addpath(genpath(basefolder)); 
+%% Initialization
+addpath('C:\Program Files\COMSOL\COMSOL55\Multiphysics\mli')
+import com.comsol.model.*
+import com.comsol.model.util.*
+format long;
+mphstart(2036); 
+%%
+modelPath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG.mph";
+savePath1 = "C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Model\Toroidal_21th\Sphere_THG_Save.mph";
+
+
+model1 = ModelUtil.create('Model1');
+model1 = mphload(modelPath1, 'Model1');
+
+ModelUtil.showProgress(true);
+%% Navigator
+mphnavigator(model1);
+    % Std1 is for small Region ewfd2
+    % Std2 is for large Region ewfd
+%% Global Parameters
+ida=450;
+radius=15;
+air_offset = 15;
+r_=6;
+pml_extend = 1;
+meshsize = 100;
+width=0;
+
+%n=load_and_interpolate_n("C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Material\Sellmeier Fitting\Sellmeier_4%_PX332_FHD.txt");
+n1=load_and_interpolate_n("C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Material\measured_refractive_index\Ge-SiO2 (2% doping RTA) (Shijia-UCSB 2024a n 0.459-1.688 µm).txt");
+nCore = n1(ida);
+
+%n = load_and_interpolate_n("C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Material\measured_refractive_index\ICP-PECVD Long Anneal.txt");
+n2 = load_and_interpolate_n("C:\Users\Dirk\Desktop\Hongrui_Yan_Simulation\Code\Material\measured_refractive_index\ReMeasured_Good_THOX.txt");
+
+nClad = 1;
+betaR(nClad, nCore, ida, radius, air_offset, width, 1)
+
+
+%%
+% Configure Parameters for Body Ring
+model1.param.set('ida', [num2str(ida, '%.3f'),'[nm]']);
+model1.param.set('radius', [num2str(radius, '%.3f'),'[um]']);
+model1.param.set('initial_guess', ['nCore*(radius+r_)']);
+model1.param.set('air_offset', [num2str(air_offset, '%.4f'),'[um]']);
+model1.param.set('core_mesh_size', [num2str(meshsize),'[nm]']);
+disp('Body Configured')
+%% Calculate Loss
+ida_list = [450];
+r_list = [1.5,3];
+radius_list = [3,6,10];
+result = containers.Map(); 
+
+i=1;
+current=1;
+total = length(ida_list)*length(r_list)*length(radius_list);
+
+startTime = datetime('now');  % Record start time
+disp(['Start time: ', datestr(startTime, 'yyyy-mm-dd HH:MM:SS')]);
+
+for ida = ida_list
+    for r = r_list
+    for radius = radius_list
+        
+        key = sprintf("ida=%dnm r=%.1fum radius=%dum",ida,r,radius);
+        model1.param.set('initial_guess', ['nCore*(radius+r_)']);
+        model1.param.set('ida', [num2str(ida, '%.3f'),'[nm]']);
+        model1.param.set('r_', [num2str(r, '%.3f'),'[um]']);
+        model1.param.set('radius', [num2str(radius, '%.3f'),'[um]']);
+        disp(sprintf('%d/%d, ida=%dnm r=%.1fum radius=%dum',current, total,ida,r,radius));
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Run
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        indicator = flag(0); % Small Region ewfd2
+        studyName = indicator.std; 
+        model1.study('std1').feature('mode').set('neigs', '6');
+        model1.study(studyName).run();
+        neff = mphglobal(model1, 'real(ewfd2.neff)', 'dataset', indicator.dset);
+        core_total = mphglobal(model1, 'eigen_core_energy/eigen_total_energy', 'dataset', indicator.dset);
+        % Filter out modes with core_total < 0.7
+        validIndices = find(core_total >= 0.3);
+        % Sort the valid eigenvalues in descending order
+        [~, sortOrder] = sort(neff(validIndices), 'descend');
+        top2Indices = validIndices(sortOrder(1:2));
+        temp1 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(1));
+        temp2 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(2));
+        if temp1>temp2
+            iTM = top2Indices(1);
+            iTE = top2Indices(2);
+        else
+            iTM = top2Indices(2);
+            iTE = top2Indices(1);
+        end
+        initial_guess = neff(iTE);
+        
+        
+        % Prepare Macro for detailed Scan
+        model1.param.set('initial_guess', num2str(initial_guess));
+        indicator = flag(1); % Large Region ewfd1
+        studyName = indicator.std; 
+        model1.study('std2').feature('mode').set('neigs', '6');
+        model1.study(studyName).run();
+    
+        neff = mphglobal(model1, 'real(ewfd.neff)', 'dataset', indicator.dset);
+        core_total = mphglobal(model1, 'core_energy/total_energy', 'dataset', indicator.dset);
+        % Filter out modes with core_total < 0.7
+        validIndices = find(core_total >= 0.3);
+        
+        watchdog = 1;
+        if numel(validIndices) < 2
+            disp(['Skipping ', key, ' Careful with this']);
+            iTE = validIndices(1);
+            xxx = mphglobal(model1, '(ex)', 'dataset', indicator.dset,'solnum',iTE);
+            disp(xxx);
+            watchdog = 0;
+        end
+        
+        if watchdog
+            % Sort the valid eigenvalues in descending order
+            [~, sortOrder] = sort(neff(validIndices), 'descend');
+            top2Indices = validIndices(sortOrder(1:2));
+        
+            temp1 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(1));
+            temp2 = mphglobal(model1, '(ez)', 'dataset', indicator.dset,'solnum',top2Indices(2));
+            if temp1>temp2
+                iTM = top2Indices(1);
+                iTE = top2Indices(2);
+            else
+                iTM = top2Indices(2);
+                iTE = top2Indices(1);
+            end
+        end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Read
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        tot_e = mphglobal(model1, 'total_energy', 'dataset', indicator.dset, 'solnum', iTE);
+        leak_e = mphglobal(model1, 'leak_energy', 'dataset', indicator.dset, 'solnum', iTE);
+        leak_A = mphglobal(model1, 'leak_A', 'dataset', indicator.dset, 'solnum', ...
+            iTE,'unit',   'um^2' );
+        Q_rad = mphglobal(model1, 'abs(real(ewfd.neff)/imag(ewfd.neff)/2)', ...
+            'dataset', indicator.dset, 'solnum', iTE);
+
+    
+    
+        figure;
+        model1.result('pg1').set('data', indicator.dset);
+        model1.result('pg1').set('solnum', iTE);
+        model1.result('pg1').set('edgecolor', 'white');
+        model1.result('pg1').feature('surf1').set('colortable', 'Rainbow');
+        model1.result('pg1').feature('surf1').set('expr', "log(ewfd.normE)");  
+        model1.result('pg1').feature('surf1').set('rangecolormin', '-5');
+        model1.result('pg1').feature('surf1').set('rangecolormax', '5.5');
+        model1.result('pg1').feature('surf1').set('descr', '|E|');
+        model1.result('pg1').feature('arws1').active(1);
+        TE_field = mphplot(model1, 'pg1','rangenum',1);
+        title(key);
+        drawnow;
+        figure;
+        model1.result('pg1').set('data', indicator.dset);
+        model1.result('pg1').set('solnum', iTE);
+        model1.result('pg1').set('edgecolor', 'white');
+        model1.result('pg1').feature('surf1').set('colortable', 'Rainbow');
+        model1.result('pg1').feature('surf1').set('expr', "log(ewfd.normE)");  
+        model1.result('pg1').feature('surf1').set('rangecolormin', '-5');
+        model1.result('pg1').feature('surf1').set('rangecolormax', '5.5');
+        model1.result('pg1').feature('surf1').set('descr', '|E|');
+        model1.result('pg1').feature('arws1').active(0);
+        TE_field = mphplot(model1, 'pg1','rangenum',1);
+        title(key);
+        drawnow;
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Save
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+        current = current+1;
+        temp = zeros(1,length(3)); %Aeff(um^2), P_out/Total, Q_rad
+        temp(1) = leak_A;
+        temp(2) = leak_e/tot_e;
+        temp(3) = Q_rad/10^6;
+        result(key) = temp;
+        info = sprintf("A_eff = .2%f, P_out/Total=.4%f,Q_rad=.2%f",temp(1),temp(2),temp(3));
+        disp(info);
+    end
+    end
+end
+
+endTime = datetime('now');  % Record end time
+disp(['End time: ', datestr(endTime, 'yyyy-mm-dd HH:MM:SS')]);
+elapsedTime = endTime - startTime;
+disp(['Elapsed time: ', char(elapsedTime)]);
+%% Optional: Convert container map to table
+% Initialize key and value storage
+keys = result.keys;
+numKeys = numel(keys);
+
+% Preallocate
+values = zeros(numKeys, 3);
+rowNames = strings(numKeys, 1);
+
+% Populate the array and row names
+for i = 1:numKeys
+    key = keys{i};
+    values(i, :) = result(key);
+    rowNames(i) = key;
+end
+
+% Convert to table
+Report_Phin = array2table(values, ...
+    'VariableNames', {'Aeff(um^2)', 'P_out_over_Total','Q_rad(M)'}, ...
+    'RowNames', rowNames);
+%%
+writetable(Report_Phin, 'Small.csv', 'WriteRowNames', true)
+
+%%
+leak_A_um2 = mphglobal( ...
+    model1, ...
+    {'leak_A'}, ...
+    'dataset', indicator.dset, ...
+    'solnum', iTE, ...
+    'unit',   'um^2' ...
+    );
+
+%% Visualize it
+figure;
+model1.result('pg1').set('data', indicator.dset);
+model1.result('pg1').set('solnum', num2str(iTE));
+model1.result('pg1').feature('surf1').set('expr', '(ewfd.normE)'); % Ensure 'surf1' exists in pg1
+model1.result('pg1').feature('surf1').set('descr', '|E|');  
+model1.result('pg1').feature('arws1').set('expr', {'abs(ewfd.Er)','abs(ewfd.Ez)'});
+mphplot(model1, 'pg1');
+drawnow;
+%%
+result = zeros(10,5);
+disp(result(1,:));
+
+%% Saving
+if 1
+
+    mphsave(model1, savePath1);
+    disp(['Model saved to: ', savePath1]);
+    % Exit 
+    % ModelUtil.disconnect();
+    ModelUtil.remove('model1');
+
+    disp('Model removed from memory.');
+end
+%%
+function betaR(n_Clad, n_Core, lambda_nm, radius_um, offset_um, width_core_um, sweep)
+    % betaR calculates the radial parameter (ida_Radial) and, if requested,
+    % sweeps over radius values to plot its behavior.
+    %
+    % Parameters:
+    %   n_Clad       - Cladding refractive index. (If no cladding is provided, use 1.)
+    %   n_Core       - Core refractive index.
+    %   lambda_nm    - Wavelength in nanometers.
+    %   radius_um    - Fiber radius in micrometers.
+    %   offset_um    - Air offset in micrometers.
+    %   width_core_um- (Optional) Core width in micrometers (default = 0).
+    %   sweep        - (Optional) Boolean flag. If true, perform a sweep and plot (default = false).
+    %
+    % Example:
+    %   betaR(1, 1.45, 1550, 50, 5, 0, true)
+    
+    % Set default values for optional parameters
+    if nargin < 7
+        sweep = false;
+    end
+    if nargin < 6
+        width_core_um = 0;
+    end
+
+    % Convert lambda from nanometers to meters
+    ida = lambda_nm * 1e-9;
+    
+    % Convert radius from micrometers to meters and compute additional offset dr
+    radius_m = radius_um * 1e-6;
+    dr = (offset_um + width_core_um/3) * 1e-6;
+    
+    % Compute the term inside the square root:
+    inside_sqrt = n_Clad^2 - ( n_Core * radius_m / (radius_m + dr) )^2;
+    
+    % Calculate ida_Radial.
+    % Note: sqrt of a negative number returns a complex result in Matlab.
+    result = ida / sqrt(inside_sqrt);
+    % Convert the result back to micrometers
+    result_um = result * 1e6;
+    % Compute the minimum air offset
+    minairoff = (n_Core/n_Clad - 1) * radius_um;
+    % Print the results
+    fprintf('Ida_Radial(%f nm) = %g [um]\n', lambda_nm, result_um);
+    fprintf('Minimum air offset is %g [um]\n', minairoff);
+    if sweep
+        sweep_radius = linspace(0.1, 10, 100) * radius_um;
+        ida_results = zeros(size(sweep_radius));
+        for i = 1:length(sweep_radius)
+            r = sweep_radius(i);
+            r_m = r * 1e-6;
+            inside_sqrt_sweep = n_Clad^2 - ( n_Core * r_m / (r_m + dr) )^2;
+            if inside_sqrt_sweep < 0
+                ida_results(i) = 0;
+            else
+                ida_results(i) = ida / sqrt(inside_sqrt_sweep) * 1e6;
+            end
+        end
+        figure;
+        scatter(sweep_radius, ida_results, 'filled');
+        xlabel('Radius (um)');
+        ylabel('Ida Radial (um)');
+    end
+end
+
+
+%{
+
+% Prepare Macro for Simulation 
+model1.param.set('initial_guess', ['nCore*(radius+0[um])']);
+indicator = flag(0); % Small Region ewfd2
+studyName = indicator.std; 
+model1.study('std1').feature('mode').set('neigs', '2');
+disp('Running Body Momentum')
+model1.study(studyName).run();
+neff = mphglobal(model1, 'real(ewfd2.neff)', 'dataset', indicator.dset);
+[initial_guess,iMax] = max(neff);
+
+
+% Prepare Macro for detailed Scan
+model1.param.set('initial_guess', num2str(initial_guess));
+indicator = flag(1); % Large Region ewfd1
+studyName = indicator.std; 
+model1.study('std2').feature('mode').set('neigs', '2');
+model1.study(studyName).run();
+[~, eigs] = sort(neff, 'descend');
+top2Indices = eigs(1:2);
+temp1 = mphglobal(model1, '(ez2)', 'dataset', indicator.dset,'solnum',top2Indices(1));
+temp2 = mphglobal(model1, '(ez2)', 'dataset', indicator.dset,'solnum',top2Indices(2));
+if temp1>temp2
+    iTM = top2Indices(1);
+    iTE = top2Indices(2);
+else
+    iTM = top2Indices(2);
+    iTE = top2Indices(1);
+end
+check = mphglobal(model1, 'core_energy/total_energy', 'dataset', indicator.dset);
+if check(iTE)>0.3
+    body_TE = mphglobal(model1, '(ewfd2.beta)', 'dataset', indicator.dset,'solnum',iTE);
+else
+    body_TE = -1;
+end
+if check(iTM)>0.3
+    body_TM = mphglobal(model1, '(ewfd2.beta)', 'dataset', indicator.dset,'solnum',iTM);
+else
+    body_TM = -1;
+end
+
+%}
