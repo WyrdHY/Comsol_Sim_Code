@@ -1,0 +1,57 @@
+@echo off
+REM ——————————————
+REM One-Click GitHub Sync for Comsol Simulation Code
+REM ——————————————
+
+REM 1) Ensure UTF-8 code page for any non-ASCII filenames
+chcp 65001 > nul
+
+REM 2) (Optional) Force English locale for timestamps/messages
+set LC_ALL=en_US.UTF-8
+set LANG=en_US.UTF-8
+
+REM 3) Point to your local repo
+set "REPO_PATH=D:\Caltech\Comsol_Simulation\Code"
+
+REM 4) cd into the repo
+cd /d "%REPO_PATH%" || (
+  echo Failed to change directory to %REPO_PATH%
+  pause
+  exit /b 1
+)
+
+REM 5) Check that Git is on your PATH
+where git >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+  echo Git not found in PATH. Please install Git or add it to PATH.
+  pause
+  exit /b 1
+)
+
+REM 6) Pull latest main
+echo.
+echo === Pulling latest from origin/main ===
+git pull origin main
+
+REM 7) Stage all changes
+echo.
+echo === Staging all changes ===
+git add .
+
+REM 8) Build an English timestamp
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set DT=%%I
+set "TS=%DT:~0,4%-%DT:~4,2%-%DT:~6,2% %DT:~8,2%:%DT:~10,2%:%DT:~12,2%"
+
+REM 9) Commit with timestamp
+echo.
+echo === Committing changes ===
+git commit -m "Auto-sync on %TS%"
+
+REM 10) Push back to GitHub
+echo.
+echo === Pushing to origin/main ===
+git push origin main
+
+echo.
+echo === Sync complete! ===
+pause
